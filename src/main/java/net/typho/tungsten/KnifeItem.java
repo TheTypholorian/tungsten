@@ -31,7 +31,7 @@ public class KnifeItem extends TieredItem implements Vanishable {
     }
 
     public float getDamage() {
-        return parent.getDamage() / 2;
+        return parent.getDamage() / 2 - 0.5f;
     }
 
     public boolean canAttackBlock(@NotNull BlockState p_43291_, @NotNull Level p_43292_, @NotNull BlockPos p_43293_, Player p_43294_) {
