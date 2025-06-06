@@ -47,14 +47,6 @@ public class HammerItem extends TieredItem implements Vanishable {
         return !p_43294_.isCreative();
     }
 
-    public float getDestroySpeed(@NotNull ItemStack p_43288_, BlockState p_43289_) {
-        if (p_43289_.is(Blocks.COBWEB)) {
-            return 15.0F;
-        } else {
-            return 1.0F;
-        }
-    }
-
     public boolean hurtEnemy(ItemStack p_43278_, @NotNull LivingEntity p_43279_, @NotNull LivingEntity p_43280_) {
         p_43278_.hurtAndBreak(1, p_43280_, (p_43296_) -> {
             p_43296_.broadcastBreakEvent(EquipmentSlot.MAINHAND);
@@ -72,10 +64,6 @@ public class HammerItem extends TieredItem implements Vanishable {
         return true;
     }
 
-    public boolean isCorrectToolForDrops(BlockState p_43298_) {
-        return p_43298_.is(Blocks.COBWEB);
-    }
-
     @Deprecated
     @SuppressWarnings("deprecation")
     public @NotNull Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(@NotNull EquipmentSlot p_43274_) {
@@ -83,15 +71,10 @@ public class HammerItem extends TieredItem implements Vanishable {
     }
 
     @Override
-    public boolean canPerformAction(ItemStack stack, net.minecraftforge.common.ToolAction toolAction) {
-        return net.minecraftforge.common.ToolActions.DEFAULT_PICKAXE_ACTIONS.contains(toolAction);
-    }
-
-    @Override
     public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level p_41432_, Player p_41433_, @NotNull InteractionHand p_41434_) {
         CompoundTag data = p_41433_.getPersistentData();
 
-        if (!p_41433_.getCooldowns().isOnCooldown(this) && !p_41433_.getPersistentData().getBoolean("isTungstenHammerSlamming") && !p_41433_.onGround()) {
+        if (!p_41433_.getCooldowns().isOnCooldown(this) && !p_41433_.getPersistentData().getBoolean("isTungstenHammerSlamming") && !p_41433_.onGround() && !p_41433_.level().isClientSide()) {
             Vec3 vec = p_41433_.getDeltaMovement();
             p_41433_.setDeltaMovement(new Vec3(vec.x(), -5, vec.z()));
             p_41433_.hurtMarked = true;
@@ -107,8 +90,6 @@ public class HammerItem extends TieredItem implements Vanishable {
     public void appendHoverText(@NotNull ItemStack p_41421_, @Nullable Level p_41422_, @NotNull List<Component> p_41423_, @NotNull TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
         p_41423_.add(Component.literal(ChatFormatting.BLUE + "Right-click while in the air to do a slam attack!"));
-        p_41423_.add(Component.literal(ChatFormatting.BLUE + "The damage of this attack is influenced by player"));
-        p_41423_.add(Component.literal(ChatFormatting.BLUE + "gravity, which the Apotheosis mod can help with."));
     }
 
     //@Override
@@ -128,11 +109,29 @@ public class HammerItem extends TieredItem implements Vanishable {
             CompoundTag data = p.getPersistentData();
 
             if (data.getBoolean("isTungstenHammerSlamming")) {
-                e.setDistance(0);
-                Vec3 vec = p.getDeltaMovement();
-                p.setDeltaMovement(new Vec3(vec.x(), 0.5, vec.z()));
-                p.hurtMarked = true;
-                data.putBoolean("isTungstenHammerSlamming", false);
+                Level l = p.level();
+
+                if (!l.isClientSide()) {
+                    ItemStack held = p.getMainHandItem();
+                    Item item = held.getItem();
+
+                    if (item instanceof HammerItem hammer) {
+                        held.hurtAndBreak((int) e.getDistance(), p, p1 -> p1.broadcastBreakEvent(EquipmentSlot.MAINHAND));
+
+                        l.explode(
+                                p,
+                                p.getX(),
+                                p.getY(),
+                                p.getZ(),
+                                (float) Math.sqrt(e.getDistance()) * hammer.getDamage() / 16f,
+                                Level.ExplosionInteraction.TNT
+                        );
+
+                        e.setDistance(0);
+
+                        data.putBoolean("isTungstenHammerSlamming", false);
+                    }
+                }
             }
         }
     }
