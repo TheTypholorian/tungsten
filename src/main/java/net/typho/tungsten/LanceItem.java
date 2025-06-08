@@ -16,19 +16,20 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingFallEvent;
+import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-public class HammerItem extends TieredItem implements Vanishable {
+public class LanceItem extends TieredItem implements Vanishable {
     private final SwordItem parent;
     private final Multimap<Attribute, AttributeModifier> defaultModifiers;
 
-    public HammerItem(SwordItem parent, Properties prop) {
+    public LanceItem(SwordItem parent, Properties prop) {
         super(parent.getTier(), prop);
         this.parent = parent;
         ImmutableMultimap.Builder<Attribute, AttributeModifier> builder = ImmutableMultimap.builder();
@@ -72,12 +73,11 @@ public class HammerItem extends TieredItem implements Vanishable {
     public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level p_41432_, Player p_41433_, @NotNull InteractionHand p_41434_) {
         CompoundTag data = p_41433_.getPersistentData();
 
-        if (!p_41433_.getCooldowns().isOnCooldown(this) && !p_41433_.getPersistentData().getBoolean("isTungstenHammerSlamming") && !p_41433_.onGround() && !p_41433_.level().isClientSide()) {
-            Vec3 vec = p_41433_.getDeltaMovement();
-            p_41433_.setDeltaMovement(new Vec3(vec.x(), -5, vec.z()));
+        if (!p_41433_.getCooldowns().isOnCooldown(this) && !p_41433_.getPersistentData().getBoolean("isTungstenLanceDashing") && !p_41433_.level().isClientSide()) {
+            p_41433_.setDeltaMovement(p_41433_.getLookAngle().scale(5));
             p_41433_.hurtMarked = true;
 
-            data.putBoolean("isTungstenHammerSlamming", true);
+            data.putBoolean("isTungstenLanceDashing", true);
             p_41433_.getCooldowns().addCooldown(this, 100);
         }
 
@@ -87,52 +87,76 @@ public class HammerItem extends TieredItem implements Vanishable {
     @Override
     public void appendHoverText(@NotNull ItemStack p_41421_, @Nullable Level p_41422_, @NotNull List<Component> p_41423_, @NotNull TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("Right-click while in the air to do a slam attack!").withStyle(TungstenMod.ITEM_ACTION_STYLE));
+        p_41423_.add(Component.literal("Right-click to dash through the air, with no fall damage!").withStyle(TungstenMod.ITEM_ACTION_STYLE));
+        p_41423_.add(Component.literal("Attacking an enemy while dashing will do more damage with more speed.").withStyle(TungstenMod.ITEM_ACTION_STYLE));
+        p_41423_.add(Component.literal("However, your dash is canceled if your speed is <5 m/s").withStyle(TungstenMod.ITEM_ACTION_STYLE));
     }
 
-    public static class FallDamageEliminator {
+    public static class DashHandler {
         @SubscribeEvent
-        public static void onPlayerTick(TickEvent.PlayerTickEvent e) {
-            CompoundTag data = e.player.getPersistentData();
+        public static void onAttackEntity(AttackEntityEvent event) {
+            Player player = event.getEntity();
+            Level level = player.level();
+            ItemStack stack = player.getMainHandItem();
 
-            if (!data.getBoolean("isTungstenHammerSlamming")) {
+            if (!(stack.getItem() instanceof LanceItem)) {
                 return;
             }
 
-            Level l = e.player.level();
-
-            if (l.isClientSide()) {
+            if (!(event.getTarget() instanceof LivingEntity target)) {
                 return;
             }
 
-            if (e.player.getDeltaMovement().length() < 0.1) {
-                data.putBoolean("isTungstenHammerSlamming", false);
-            }
+            CompoundTag data = player.getPersistentData();
 
-            if (!(e.player.onGround() || e.player.isInWaterOrBubble() || e.player.isInLava())) {
+            if (!data.getBoolean("isTungstenLanceDashing")) {
                 return;
             }
 
-            ItemStack held = e.player.getMainHandItem();
+            target.hurt(level.damageSources().playerAttack(player), (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE) + (float) player.getDeltaMovement().length() * 2);
+            stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
 
-            if (!(held.getItem() instanceof HammerItem hammer)) {
-                data.putBoolean("isTungstenHammerSlamming", false);
+            event.setCanceled(true);
+
+            data.putBoolean("isTungstenLanceDashing", false);
+        }
+
+        @SubscribeEvent
+        public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
+            if (event.phase != TickEvent.Phase.END) {
                 return;
             }
 
-            held.hurtAndBreak((int) e.player.fallDistance, e.player, p1 -> p1.broadcastBreakEvent(EquipmentSlot.MAINHAND));
+            CompoundTag data = event.player.getPersistentData();
 
-            l.explode(
-                    e.player,
-                    e.player.getX(),
-                    e.player.getY(),
-                    e.player.getZ(),
-                    (float) Math.sqrt(e.player.fallDistance) * hammer.getDamage() / 16f,
-                    Level.ExplosionInteraction.NONE
-            );
+            if (!data.getBoolean("isTungstenLanceDashing")) {
+                return;
+            }
 
-            data.putBoolean("isTungstenHammerSlamming", false);
-            e.player.fallDistance = 0;
+            if (event.player.getDeltaMovement().length() < 0.25D) {
+                data.putBoolean("isTungstenLanceDashing", false);
+            }
+        }
+
+        @SubscribeEvent
+        public static void onLivingFall(LivingFallEvent e) {
+            LivingEntity entity = e.getEntity();
+
+            if (!(entity instanceof Player p)) {
+                return;
+            }
+
+            CompoundTag data = p.getPersistentData();
+
+            if (data.getBoolean("isTungstenLanceDashing")) {
+                Level l = p.level();
+
+                if (!l.isClientSide()) {
+                    e.setDistance(0);
+
+                    data.putBoolean("isTungstenLanceDashing", false);
+                }
+            }
         }
     }
 }

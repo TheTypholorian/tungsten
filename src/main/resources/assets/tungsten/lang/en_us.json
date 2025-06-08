@@ -6,5 +6,8 @@
   "item.tungsten.gold_knife": "Gold Knife",
   "item.tungsten.netherite_knife": "Netherite Knife",
 
-  "item.tungsten.netherite_hammer": "Netherite Hammer"
+  "item.tungsten.wooden_hammer": "Wooden Hammer",
+  "item.tungsten.netherite_hammer": "Netherite Hammer",
+
+  "item.tungsten.netherite_lance": "Netherite Lance"
 }
