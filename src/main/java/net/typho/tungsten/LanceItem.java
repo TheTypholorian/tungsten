@@ -2,9 +2,12 @@ package net.typho.tungsten;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -16,16 +19,23 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingFallEvent;
 import net.minecraftforge.event.entity.player.AttackEntityEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.network.NetworkDirection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 
 import java.util.List;
 
 public class LanceItem extends TieredItem implements Vanishable {
+    public static final DustParticleOptions DASH_PARTICLE = new DustParticleOptions(new Vector3f(0f, 0.7f, 1f), 2) {
+    };
+
     private final SwordItem parent;
     private final Multimap<Attribute, AttributeModifier> defaultModifiers;
 
@@ -77,7 +87,7 @@ public class LanceItem extends TieredItem implements Vanishable {
             p_41433_.setDeltaMovement(p_41433_.getLookAngle().scale(5));
             p_41433_.hurtMarked = true;
 
-            data.putBoolean("isTungstenLanceDashing", true);
+            dash(true, p_41433_, data);
             p_41433_.getCooldowns().addCooldown(this, 100);
         }
 
@@ -87,9 +97,25 @@ public class LanceItem extends TieredItem implements Vanishable {
     @Override
     public void appendHoverText(@NotNull ItemStack p_41421_, @Nullable Level p_41422_, @NotNull List<Component> p_41423_, @NotNull TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("Right-click to dash through the air, with no fall damage!").withStyle(TungstenMod.ITEM_ACTION_STYLE));
-        p_41423_.add(Component.literal("Attacking an enemy while dashing will do more damage with more speed.").withStyle(TungstenMod.ITEM_ACTION_STYLE));
-        p_41423_.add(Component.literal("However, your dash is canceled if your speed is <5 m/s").withStyle(TungstenMod.ITEM_ACTION_STYLE));
+        p_41423_.add(Component.literal(TungstenMod.ITEM_ACTION_COLOR + "Right-click to dash through the air, with no fall damage!"));
+        p_41423_.add(Component.literal(TungstenMod.ITEM_ACTION_COLOR + "Attacking an enemy while dashing will do more damage with more speed."));
+        p_41423_.add(Component.literal(TungstenMod.ITEM_ACTION_COLOR + "However, your dash is canceled if your speed is <5 m/s"));
+    }
+
+    public static void dash(boolean dash, Player player, CompoundTag data) {
+        data.putBoolean("isTungstenLanceDashing", dash);
+
+        if (player instanceof ServerPlayer sp) {
+            TungstenMod.INSTANCE.sendTo(
+                    new LanceDashPacket(dash),
+                    sp.connection.connection,
+                    NetworkDirection.PLAY_TO_CLIENT
+            );
+        }
+
+        if (dash) {
+            player.displayClientMessage(Component.literal(TungstenMod.ITEM_ACTION_COLOR + "Lance Dashed"), true);
+        }
     }
 
     public static class DashHandler {
@@ -99,7 +125,7 @@ public class LanceItem extends TieredItem implements Vanishable {
             Level level = player.level();
             ItemStack stack = player.getMainHandItem();
 
-            if (!(stack.getItem() instanceof LanceItem)) {
+            if (!(stack.getItem() instanceof LanceItem lance)) {
                 return;
             }
 
@@ -113,12 +139,12 @@ public class LanceItem extends TieredItem implements Vanishable {
                 return;
             }
 
-            target.hurt(level.damageSources().playerAttack(player), (float) player.getAttributeValue(Attributes.ATTACK_DAMAGE) + (float) player.getDeltaMovement().length() * 2);
+            target.hurt(level.damageSources().playerAttack(player), lance.getDamage() + (float) player.getDeltaMovement().length() * 2);
             stack.hurtAndBreak(1, player, (p) -> p.broadcastBreakEvent(EquipmentSlot.MAINHAND));
 
             event.setCanceled(true);
 
-            data.putBoolean("isTungstenLanceDashing", false);
+            dash(false, player, data);
         }
 
         @SubscribeEvent
@@ -133,8 +159,10 @@ public class LanceItem extends TieredItem implements Vanishable {
                 return;
             }
 
+            event.player.displayClientMessage(Component.literal(TungstenMod.ITEM_ACTION_COLOR + "Lance Dashing..."), true);
+
             if (event.player.getDeltaMovement().length() < 0.25D) {
-                data.putBoolean("isTungstenLanceDashing", false);
+                dash(false, event.player, data);
             }
         }
 
@@ -154,8 +182,38 @@ public class LanceItem extends TieredItem implements Vanishable {
                 if (!l.isClientSide()) {
                     e.setDistance(0);
 
-                    data.putBoolean("isTungstenLanceDashing", false);
+                    dash(false, p, data);
                 }
+            }
+        }
+    }
+
+    @Mod.EventBusSubscriber(modid = TungstenMod.MODID, value = Dist.CLIENT)
+    public static class DashParticles {
+        @SubscribeEvent
+        public static void onClientTick(TickEvent.ClientTickEvent event) {
+            Minecraft mc = Minecraft.getInstance();
+
+            if (mc.player == null || mc.level == null) {
+                return;
+            }
+
+            CompoundTag data = mc.player.getPersistentData();
+
+            if (!data.getBoolean("isTungstenLanceDashing")) {
+                return;
+            }
+
+            for (int i = 0; i < 5; i++) {
+                mc.level.addParticle(
+                        DASH_PARTICLE,
+                        mc.player.getX(),
+                        mc.player.getY() + 1,
+                        mc.player.getZ(),
+                        (Math.random() - 0.5) * 10,
+                        (Math.random() - 0.5) * 10,
+                        (Math.random() - 0.5) * 10
+                );
             }
         }
     }

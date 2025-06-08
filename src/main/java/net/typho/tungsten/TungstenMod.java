@@ -1,8 +1,8 @@
 package net.typho.tungsten;
 
 import com.mojang.logging.LogUtils;
-import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.TextColor;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
@@ -12,16 +12,24 @@ import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.network.NetworkDirection;
+import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.network.NetworkRegistry;
+import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 import org.slf4j.Logger;
 
+import java.util.Optional;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
 @Mod(TungstenMod.MODID)
 public class TungstenMod {
     public static final String MODID = "tungsten";
-    public static final TextColor ITEM_ACTION_COLOR = TextColor.fromRgb(0xFFC34C);
-    public static final Style ITEM_ACTION_STYLE = Style.EMPTY.withColor(ITEM_ACTION_COLOR);
+    public static final String ITEM_ACTION_COLOR = "§6";
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
@@ -39,6 +47,20 @@ public class TungstenMod {
 
     public static final RegistryObject<LanceItem> NETHERITE_LANCE = ITEMS.register("netherite_lance", () -> new LanceItem((SwordItem) Items.NETHERITE_SWORD, new Item.Properties().fireResistant()));
 
+    public static final String PROTOCOL_VERSION = "1";
+    public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
+            ResourceLocation.fromNamespaceAndPath(MODID, "main"),
+            () -> PROTOCOL_VERSION,
+            PROTOCOL_VERSION::equals,
+            PROTOCOL_VERSION::equals
+    );
+
+    private static int packetId = 0;
+
+    private static <T> void register(Class<T> type, BiConsumer<T, FriendlyByteBuf> encoder, Function<FriendlyByteBuf, T> decoder, BiConsumer<T, Supplier<NetworkEvent.Context>> handler, Optional<NetworkDirection> direction) {
+        INSTANCE.registerMessage(packetId++, type, encoder, decoder, handler, direction);
+    }
+
     public TungstenMod(FMLJavaModLoadingContext context) {
         IEventBus bus = context.getModEventBus();
 
@@ -49,6 +71,21 @@ public class TungstenMod {
         MinecraftForge.EVENT_BUS.register(LanceItem.DashHandler.class);
 
         bus.addListener(this::addCreative);
+
+        register(
+                LanceDashPacket.class,
+                LanceDashPacket::toBytes,
+                LanceDashPacket::new,
+                LanceDashPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT)
+        );
+        register(
+                HammerSlamPacket.class,
+                HammerSlamPacket::toBytes,
+                HammerSlamPacket::new,
+                HammerSlamPacket::handle,
+                Optional.of(NetworkDirection.PLAY_TO_CLIENT)
+        );
     }
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {

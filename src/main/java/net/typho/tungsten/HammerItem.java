@@ -2,9 +2,12 @@ package net.typho.tungsten;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -17,14 +20,20 @@ import net.minecraft.world.item.*;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.network.NetworkDirection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.joml.Vector3f;
 
 import java.util.List;
 
 public class HammerItem extends TieredItem implements Vanishable {
+    public static final DustParticleOptions SLAM_PARTICLE = new DustParticleOptions(new Vector3f(0.6f, 0f, 0.8f), 2);
+
     private final SwordItem parent;
     private final Multimap<Attribute, AttributeModifier> defaultModifiers;
 
@@ -77,7 +86,7 @@ public class HammerItem extends TieredItem implements Vanishable {
             p_41433_.setDeltaMovement(new Vec3(vec.x(), -5, vec.z()));
             p_41433_.hurtMarked = true;
 
-            data.putBoolean("isTungstenHammerSlamming", true);
+            slam(true, p_41433_, data);
             p_41433_.getCooldowns().addCooldown(this, 100);
         }
 
@@ -87,7 +96,23 @@ public class HammerItem extends TieredItem implements Vanishable {
     @Override
     public void appendHoverText(@NotNull ItemStack p_41421_, @Nullable Level p_41422_, @NotNull List<Component> p_41423_, @NotNull TooltipFlag p_41424_) {
         super.appendHoverText(p_41421_, p_41422_, p_41423_, p_41424_);
-        p_41423_.add(Component.literal("Right-click while in the air to do a slam attack!").withStyle(TungstenMod.ITEM_ACTION_STYLE));
+        p_41423_.add(Component.literal(TungstenMod.ITEM_ACTION_COLOR + "Right-click while in the air to do a slam attack!"));
+    }
+
+    public static void slam(boolean slam, Player player, CompoundTag data) {
+        data.putBoolean("isTungstenHammerSlamming", slam);
+
+        if (player instanceof ServerPlayer sp) {
+            TungstenMod.INSTANCE.sendTo(
+                    new HammerSlamPacket(slam),
+                    sp.connection.connection,
+                    NetworkDirection.PLAY_TO_CLIENT
+            );
+        }
+
+        if (slam) {
+            player.displayClientMessage(Component.literal(TungstenMod.ITEM_ACTION_COLOR + "Hammer Slammed"), true);
+        }
     }
 
     public static class FallDamageEliminator {
@@ -101,12 +126,14 @@ public class HammerItem extends TieredItem implements Vanishable {
 
             Level l = e.player.level();
 
+            e.player.displayClientMessage(Component.literal(TungstenMod.ITEM_ACTION_COLOR + "Hammer Slamming..."), true);
+
             if (l.isClientSide()) {
                 return;
             }
 
             if (e.player.getDeltaMovement().length() < 0.1) {
-                data.putBoolean("isTungstenHammerSlamming", false);
+                slam(false, e.player, data);
             }
 
             if (!(e.player.onGround() || e.player.isInWaterOrBubble() || e.player.isInLava())) {
@@ -116,7 +143,7 @@ public class HammerItem extends TieredItem implements Vanishable {
             ItemStack held = e.player.getMainHandItem();
 
             if (!(held.getItem() instanceof HammerItem hammer)) {
-                data.putBoolean("isTungstenHammerSlamming", false);
+                slam(false, e.player, data);
                 return;
             }
 
@@ -127,12 +154,42 @@ public class HammerItem extends TieredItem implements Vanishable {
                     e.player.getX(),
                     e.player.getY(),
                     e.player.getZ(),
-                    (float) Math.sqrt(e.player.fallDistance) * hammer.getDamage() / 16f,
+                    (float) Math.sqrt(e.player.fallDistance) * hammer.getDamage() / 8f,
                     Level.ExplosionInteraction.NONE
             );
 
-            data.putBoolean("isTungstenHammerSlamming", false);
+            slam(false, e.player, data);
             e.player.fallDistance = 0;
+        }
+    }
+
+    @Mod.EventBusSubscriber(modid = TungstenMod.MODID, value = Dist.CLIENT)
+    public static class SlamParticles {
+        @SubscribeEvent
+        public static void onClientTick(TickEvent.ClientTickEvent event) {
+            Minecraft mc = Minecraft.getInstance();
+
+            if (mc.player == null || mc.level == null) {
+                return;
+            }
+
+            CompoundTag data = mc.player.getPersistentData();
+
+            if (!data.getBoolean("isTungstenHammerSlamming")) {
+                return;
+            }
+
+            for (int i = 0; i < 5; i++) {
+                mc.level.addParticle(
+                        SLAM_PARTICLE,
+                        mc.player.getX(),
+                        mc.player.getY() + 1,
+                        mc.player.getZ(),
+                        (Math.random() - 0.5) * 10,
+                        (Math.random() - 0.5) * 10,
+                        (Math.random() - 0.5) * 10
+                );
+            }
         }
     }
 }
