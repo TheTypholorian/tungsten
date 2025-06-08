@@ -84,7 +84,7 @@ public class LanceItem extends TieredItem implements Vanishable {
         CompoundTag data = p_41433_.getPersistentData();
 
         if (!p_41433_.getCooldowns().isOnCooldown(this) && !p_41433_.getPersistentData().getBoolean("isTungstenLanceDashing") && !p_41433_.level().isClientSide()) {
-            p_41433_.setDeltaMovement(p_41433_.getLookAngle().scale(5));
+            p_41433_.setDeltaMovement(p_41433_.getLookAngle().scale(getDamage() / 4f));
             p_41433_.hurtMarked = true;
 
             dash(true, p_41433_, data);
