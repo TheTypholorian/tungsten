@@ -56,6 +56,8 @@ public class TungstenMod {
 
     public static final RegistryObject<GrenadeItem> GRENADE = ITEMS.register("grenade", () -> new GrenadeItem(new Item.Properties()));
 
+    public static final RegistryObject<FlamethrowerItem> FLAMETHROWER = ITEMS.register("flamethrower", () -> new FlamethrowerItem(new Item.Properties()));
+
     public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, MODID);
 
     public static final RegistryObject<EntityType<GrenadeProjectile>> GRENADE_PROJECTILE = ENTITIES.register("grenade_projectile", () -> EntityType.Builder.<GrenadeProjectile>of(GrenadeProjectile::new, MobCategory.MISC).sized(0.5f, 0.5f).build("grenade_projectile"));
@@ -115,6 +117,8 @@ public class TungstenMod {
             event.accept(NETHERITE_HAMMER);
 
             event.accept(NETHERITE_LANCE);
+
+            event.accept(FLAMETHROWER);
 
             event.accept(GRENADE);
         }
