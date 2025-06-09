@@ -1,16 +1,23 @@
 package net.typho.tungsten;
 
 import com.mojang.logging.LogUtils;
+import net.minecraft.client.renderer.entity.EntityRenderers;
+import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SwordItem;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
@@ -47,6 +54,12 @@ public class TungstenMod {
 
     public static final RegistryObject<LanceItem> NETHERITE_LANCE = ITEMS.register("netherite_lance", () -> new LanceItem((SwordItem) Items.NETHERITE_SWORD, new Item.Properties().fireResistant()));
 
+    public static final RegistryObject<GrenadeItem> GRENADE = ITEMS.register("grenade", () -> new GrenadeItem(new Item.Properties()));
+
+    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, MODID);
+
+    public static final RegistryObject<EntityType<GrenadeProjectile>> GRENADE_PROJECTILE = ENTITIES.register("grenade_projectile", () -> EntityType.Builder.<GrenadeProjectile>of(GrenadeProjectile::new, MobCategory.MISC).sized(0.5f, 0.5f).build("grenade_projectile"));
+
     public static final String PROTOCOL_VERSION = "1";
     public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MODID, "main"),
@@ -65,6 +78,7 @@ public class TungstenMod {
         IEventBus bus = context.getModEventBus();
 
         ITEMS.register(bus);
+        ENTITIES.register(bus);
 
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(HammerItem.FallDamageEliminator.class);
@@ -101,6 +115,16 @@ public class TungstenMod {
             event.accept(NETHERITE_HAMMER);
 
             event.accept(NETHERITE_LANCE);
+
+            event.accept(GRENADE);
+        }
+    }
+
+    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    public static class Client {
+        @SubscribeEvent
+        public static void onClientSetup(FMLClientSetupEvent e) {
+            EntityRenderers.register(GRENADE_PROJECTILE.get(), ThrownItemRenderer::new);
         }
     }
 }
