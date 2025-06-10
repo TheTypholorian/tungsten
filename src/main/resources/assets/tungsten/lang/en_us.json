@@ -11,5 +11,7 @@
 
   "item.tungsten.netherite_lance": "Netherite Lance",
 
-  "item.tungsten.grenade": "Grenade"
+  "item.tungsten.grenade": "Grenade",
+
+  "enchantment.tungsten.pullback": "Pullback"
 }
