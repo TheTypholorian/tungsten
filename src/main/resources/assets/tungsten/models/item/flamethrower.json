@@ -1,5 +1,6 @@
 {
 	"credit": "Made with Blockbench",
+	"gui_light": "flat",
 	"elements": [
 		{
 			"from": [0, 0, 6.5],
