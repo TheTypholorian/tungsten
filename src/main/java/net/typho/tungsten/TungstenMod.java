@@ -1,6 +1,5 @@
 package net.typho.tungsten;
 
-import com.mojang.logging.LogUtils;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.network.FriendlyByteBuf;
@@ -13,6 +12,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SwordItem;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.level.block.Block;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
@@ -28,7 +28,11 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
-import org.slf4j.Logger;
+import net.typho.tungsten.enchantment.PullEnchantment;
+import net.typho.tungsten.entity.GrenadeProjectile;
+import net.typho.tungsten.item.*;
+import net.typho.tungsten.network.HammerSlamPacket;
+import net.typho.tungsten.network.LanceDashPacket;
 
 import java.util.Optional;
 import java.util.function.BiConsumer;
@@ -39,8 +43,6 @@ import java.util.function.Supplier;
 public class TungstenMod {
     public static final String MODID = "tungsten";
     public static final String ITEM_ACTION_COLOR = "§6";
-
-    private static final Logger LOGGER = LogUtils.getLogger();
 
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 
@@ -59,6 +61,8 @@ public class TungstenMod {
     public static final RegistryObject<GrenadeItem> GRENADE = ITEMS.register("grenade", () -> new GrenadeItem(new Item.Properties()));
 
     public static final RegistryObject<FlamethrowerItem> FLAMETHROWER = ITEMS.register("flamethrower", () -> new FlamethrowerItem(new Item.Properties()));
+
+    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
 
     public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, MODID);
 

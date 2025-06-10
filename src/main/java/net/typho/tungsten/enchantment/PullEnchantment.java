@@ -1,4 +1,4 @@
-package net.typho.tungsten;
+package net.typho.tungsten.enchantment;
 
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -9,6 +9,7 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.event.entity.living.LivingKnockBackEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.typho.tungsten.TungstenMod;
 
 import java.util.Objects;
 
