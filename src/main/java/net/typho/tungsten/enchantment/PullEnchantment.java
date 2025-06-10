@@ -15,7 +15,7 @@ import java.util.Objects;
 
 @Mod.EventBusSubscriber(modid = TungstenMod.MODID)
 public class PullEnchantment extends Enchantment {
-    protected PullEnchantment(Rarity pRarity, EquipmentSlot[] pApplicableSlots) {
+    public PullEnchantment(Rarity pRarity, EquipmentSlot[] pApplicableSlots) {
         super(pRarity, EnchantmentCategory.WEAPON, pApplicableSlots);
     }
 

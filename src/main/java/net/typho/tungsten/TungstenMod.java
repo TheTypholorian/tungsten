@@ -4,17 +4,19 @@ import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.MobCategory;
-import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.*;
+import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.level.block.Block;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.common.ForgeTier;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.TierSortingRegistry;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -33,7 +35,11 @@ import net.typho.tungsten.entity.GrenadeProjectile;
 import net.typho.tungsten.item.*;
 import net.typho.tungsten.network.HammerSlamPacket;
 import net.typho.tungsten.network.LanceDashPacket;
+import org.apache.logging.log4j.util.TriConsumer;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
@@ -46,12 +52,9 @@ public class TungstenMod {
 
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
 
-    public static final RegistryObject<KnifeItem> WOODEN_KNIFE = ITEMS.register("wooden_knife", () -> new KnifeItem((SwordItem) Items.WOODEN_SWORD, new Item.Properties()));
-    public static final RegistryObject<KnifeItem> STONE_KNIFE = ITEMS.register("stone_knife", () -> new KnifeItem((SwordItem) Items.STONE_SWORD, new Item.Properties()));
-    public static final RegistryObject<KnifeItem> IRON_KNIFE = ITEMS.register("iron_knife", () -> new KnifeItem((SwordItem) Items.IRON_SWORD, new Item.Properties()));
-    public static final RegistryObject<KnifeItem> DIAMOND_KNIFE = ITEMS.register("diamond_knife", () -> new KnifeItem((SwordItem) Items.DIAMOND_SWORD, new Item.Properties()));
-    public static final RegistryObject<KnifeItem> GOLDEN_KNIFE = ITEMS.register("golden_knife", () -> new KnifeItem((SwordItem) Items.GOLDEN_SWORD, new Item.Properties()));
-    public static final RegistryObject<KnifeItem> NETHERITE_KNIFE = ITEMS.register("netherite_knife", () -> new KnifeItem((SwordItem) Items.NETHERITE_SWORD, new Item.Properties().fireResistant()));
+    public static final RegistryObject<Item> TUNGSTEN_INGOT = ITEMS.register("tungsten_ingot", () -> new Item(new Item.Properties()));
+
+    public static final Map<Tier, RegistryObject<KnifeItem>> KNIVES = new LinkedHashMap<>();
 
     public static final RegistryObject<HammerItem> WOODEN_HAMMER = ITEMS.register("wooden_hammer", () -> new HammerItem((SwordItem) Items.WOODEN_SWORD, new Item.Properties()));
     public static final RegistryObject<HammerItem> NETHERITE_HAMMER = ITEMS.register("netherite_hammer", () -> new HammerItem((SwordItem) Items.NETHERITE_SWORD, new Item.Properties().fireResistant()));
@@ -72,6 +75,36 @@ public class TungstenMod {
 
     public static final RegistryObject<PullEnchantment> PULLBACK = ENCHANTMENTS.register("pullback", () -> new PullEnchantment(Enchantment.Rarity.COMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
 
+    public static final TagKey<Block> NEEDS_TUNGSTEN_TOOL = BlockTags.create(new ResourceLocation(MODID, "needs_tungsten_tool"));
+    public static final Tier TUNGSTEN_TIER = TierSortingRegistry.registerTier(
+            new ForgeTier(5, 3000, 5, 5, 25, NEEDS_TUNGSTEN_TOOL, () -> Ingredient.of(TUNGSTEN_INGOT.get())),
+            new ResourceLocation(MODID, "tungsten"),
+            List.of(Tiers.NETHERITE),
+            List.of()
+    );
+
+    public static void allTiers(TriConsumer<Tier, String, Supplier<Item.Properties>> out) {
+        out.accept(Tiers.WOOD, "wooden", Item.Properties::new);
+        out.accept(Tiers.STONE, "stone", Item.Properties::new);
+        out.accept(Tiers.IRON, "iron", Item.Properties::new);
+        out.accept(Tiers.DIAMOND, "diamond", Item.Properties::new);
+        out.accept(Tiers.GOLD, "golden", Item.Properties::new);
+        out.accept(Tiers.NETHERITE, "netherite", () -> new Item.Properties().fireResistant());
+        out.accept(TUNGSTEN_TIER, "tungsten", () -> new Item.Properties().fireResistant().rarity(Rarity.EPIC));
+    }
+
+    public static RegistryObject<KnifeItem> knife(Tier tier, String tierName, Supplier<Item.Properties> prop) {
+        if (KNIVES.containsKey(tier)) {
+            throw new IllegalStateException("Tried to register a knife of tier " + tierName + " twice");
+        }
+
+        RegistryObject<KnifeItem> knife = ITEMS.register(tierName + "_knife", () -> new KnifeItem(tier, prop.get()));
+
+        KNIVES.put(tier, knife);
+
+        return knife;
+    }
+
     public static final String PROTOCOL_VERSION = "1";
     public static final SimpleChannel INSTANCE = NetworkRegistry.newSimpleChannel(
             new ResourceLocation(MODID, "main"),
@@ -88,6 +121,8 @@ public class TungstenMod {
 
     public TungstenMod(FMLJavaModLoadingContext context) {
         IEventBus bus = context.getModEventBus();
+
+        allTiers(TungstenMod::knife);
 
         ITEMS.register(bus);
         ENTITIES.register(bus);
@@ -117,12 +152,9 @@ public class TungstenMod {
 
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.COMBAT) {
-            event.accept(WOODEN_KNIFE);
-            event.accept(STONE_KNIFE);
-            event.accept(IRON_KNIFE);
-            event.accept(DIAMOND_KNIFE);
-            event.accept(GOLDEN_KNIFE);
-            event.accept(NETHERITE_KNIFE);
+            for (RegistryObject<KnifeItem> knife : KNIVES.values()) {
+                event.accept(knife);
+            }
 
             event.accept(WOODEN_HAMMER);
             event.accept(NETHERITE_HAMMER);

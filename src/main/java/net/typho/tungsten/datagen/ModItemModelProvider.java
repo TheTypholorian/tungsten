@@ -16,7 +16,7 @@ public class ModItemModelProvider extends ItemModelProvider {
 
     @Override
     protected void registerModels() {
-        simpleItem(TungstenMod.NETHERITE_KNIFE);
+        TungstenMod.KNIVES.values().forEach(this::simpleItem);
     }
 
     protected ItemModelBuilder simpleItem(RegistryObject<? extends Item> item) {

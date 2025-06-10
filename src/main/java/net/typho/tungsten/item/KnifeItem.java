@@ -11,7 +11,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SwordItem;
+import net.minecraft.world.item.Tier;
 import net.minecraft.world.item.TieredItem;
 import net.minecraft.world.item.Vanishable;
 import net.minecraft.world.item.enchantment.Enchantment;
@@ -21,20 +21,20 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.NotNull;
 
 public class KnifeItem extends TieredItem implements Vanishable {
-    private final SwordItem parent;
+    private final float damage;
     private final Multimap<Attribute, AttributeModifier> defaultModifiers;
 
-    public KnifeItem(SwordItem parent, Properties prop) {
-        super(parent.getTier(), prop);
-        this.parent = parent;
+    public KnifeItem(Tier tier, Properties prop) {
+        super(tier, prop);
+        this.damage = 3 + tier.getAttackDamageBonus();
         ImmutableMultimap.Builder<Attribute, AttributeModifier> builder = ImmutableMultimap.builder();
-        builder.put(Attributes.ATTACK_DAMAGE, new AttributeModifier(BASE_ATTACK_DAMAGE_UUID, "Weapon modifier", getDamage(), AttributeModifier.Operation.ADDITION));
+        builder.put(Attributes.ATTACK_DAMAGE, new AttributeModifier(BASE_ATTACK_DAMAGE_UUID, "Weapon modifier", damage, AttributeModifier.Operation.ADDITION));
         builder.put(Attributes.ATTACK_SPEED, new AttributeModifier(BASE_ATTACK_SPEED_UUID, "Weapon modifier", -0.8, AttributeModifier.Operation.ADDITION));
         this.defaultModifiers = builder.build();
     }
 
     public float getDamage() {
-        return parent.getDamage() / 2 - 0.5f;
+        return damage;
     }
 
     public boolean canAttackBlock(@NotNull BlockState p_43291_, @NotNull Level p_43292_, @NotNull BlockPos p_43293_, Player p_43294_) {
@@ -45,7 +45,7 @@ public class KnifeItem extends TieredItem implements Vanishable {
         if (p_43289_.is(Blocks.COBWEB)) {
             return 15.0F;
         } else {
-            return p_43289_.is(BlockTags.SWORD_EFFICIENT) ? 1.5F : 1.0F;
+            return p_43289_.is(BlockTags.SWORD_EFFICIENT) ? 2F : 1.0F;
         }
     }
 
@@ -81,6 +81,9 @@ public class KnifeItem extends TieredItem implements Vanishable {
 
     @Override
     public boolean canApplyAtEnchantingTable(ItemStack stack, Enchantment enchantment) {
-        return enchantment.category.canEnchant(parent) || super.canApplyAtEnchantingTable(stack, enchantment);
+        return switch (enchantment.category) {
+            case WEAPON, VANISHABLE -> true;
+            default -> super.canApplyAtEnchantingTable(stack, enchantment);
+        };
     }
 }
