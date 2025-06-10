@@ -1,25 +1,26 @@
-package net.typho.tungsten;
+package net.typho.tungsten.network;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.network.NetworkEvent;
+import net.typho.tungsten.item.HammerItem;
 
 import java.util.function.Supplier;
 
-public class LanceDashPacket {
-    private final boolean isDashing;
+public class HammerSlamPacket {
+    private final boolean isSlamming;
 
-    public LanceDashPacket(boolean isDashing) {
-        this.isDashing = isDashing;
+    public HammerSlamPacket(boolean isSlamming) {
+        this.isSlamming = isSlamming;
     }
 
-    public LanceDashPacket(FriendlyByteBuf buf) {
-        this.isDashing = buf.readBoolean();
+    public HammerSlamPacket(FriendlyByteBuf buf) {
+        this.isSlamming = buf.readBoolean();
     }
 
     public void toBytes(FriendlyByteBuf buf) {
-        buf.writeBoolean(isDashing);
+        buf.writeBoolean(isSlamming);
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
@@ -27,7 +28,7 @@ public class LanceDashPacket {
             if (ctx.get().getDirection().getReceptionSide().isClient()) {
                 Player player = Minecraft.getInstance().player;
                 assert player != null;
-                LanceItem.dash(isDashing, player, player.getPersistentData());
+                HammerItem.slam(isSlamming, player, player.getPersistentData());
             }
         });
         ctx.get().setPacketHandled(true);
