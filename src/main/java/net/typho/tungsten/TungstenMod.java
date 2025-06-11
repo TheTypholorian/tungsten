@@ -4,6 +4,7 @@ import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.entity.ThrownItemRenderer;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EntityType;
@@ -36,6 +37,7 @@ import net.typho.tungsten.item.*;
 import net.typho.tungsten.network.HammerSlamPacket;
 import net.typho.tungsten.network.LanceDashPacket;
 import org.apache.logging.log4j.util.TriConsumer;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,30 +52,17 @@ public class TungstenMod {
     public static final String MODID = "tungsten";
     public static final String ITEM_ACTION_COLOR = "§6";
 
+    // ITEMS
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MODID);
-
-    public static final RegistryObject<Item> TUNGSTEN_INGOT = ITEMS.register("tungsten_ingot", () -> new Item(new Item.Properties()));
 
     public static final Map<Tier, RegistryObject<KnifeItem>> KNIVES = new LinkedHashMap<>();
 
+    public static final RegistryObject<Item> TUNGSTEN_INGOT = ITEMS.register("tungsten_ingot", () -> new Item(new Item.Properties()));
     public static final RegistryObject<HammerItem> WOODEN_HAMMER = ITEMS.register("wooden_hammer", () -> new HammerItem((SwordItem) Items.WOODEN_SWORD, new Item.Properties()));
     public static final RegistryObject<HammerItem> NETHERITE_HAMMER = ITEMS.register("netherite_hammer", () -> new HammerItem((SwordItem) Items.NETHERITE_SWORD, new Item.Properties().fireResistant()));
-
     public static final RegistryObject<LanceItem> NETHERITE_LANCE = ITEMS.register("netherite_lance", () -> new LanceItem((SwordItem) Items.NETHERITE_SWORD, new Item.Properties().fireResistant()));
-
     public static final RegistryObject<GrenadeItem> GRENADE = ITEMS.register("grenade", () -> new GrenadeItem(new Item.Properties()));
-
     public static final RegistryObject<FlamethrowerItem> FLAMETHROWER = ITEMS.register("flamethrower", () -> new FlamethrowerItem(new Item.Properties()));
-
-    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
-
-    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, MODID);
-
-    public static final RegistryObject<EntityType<GrenadeProjectile>> GRENADE_PROJECTILE = ENTITIES.register("grenade_projectile", () -> EntityType.Builder.<GrenadeProjectile>of(GrenadeProjectile::new, MobCategory.MISC).sized(0.5f, 0.5f).build("grenade_projectile"));
-
-    public static final DeferredRegister<Enchantment> ENCHANTMENTS = DeferredRegister.create(ForgeRegistries.ENCHANTMENTS, MODID);
-
-    public static final RegistryObject<PullEnchantment> PULLBACK = ENCHANTMENTS.register("pullback", () -> new PullEnchantment(Enchantment.Rarity.COMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
 
     public static final TagKey<Block> NEEDS_TUNGSTEN_TOOL = BlockTags.create(new ResourceLocation(MODID, "needs_tungsten_tool"));
     public static final Tier TUNGSTEN_TIER = TierSortingRegistry.registerTier(
@@ -82,6 +71,80 @@ public class TungstenMod {
             List.of(Tiers.NETHERITE),
             List.of()
     );
+    public static final ArmorMaterial TUNGSTEN_MATERIAL = new ArmorMaterial() {
+        @Override
+        public int getDurabilityForType(ArmorItem.Type pType) {
+            return switch (pType) {
+                case HELMET -> 11;
+                case CHESTPLATE -> 16;
+                case LEGGINGS -> 15;
+                case BOOTS -> 13;
+            } * 30;
+        }
+
+        @Override
+        public int getDefenseForType(ArmorItem.Type pType) {
+            return switch (pType) {
+                case HELMET, BOOTS -> 4;
+                case CHESTPLATE -> 9;
+                case LEGGINGS -> 7;
+            };
+        }
+
+        @Override
+        public int getEnchantmentValue() {
+            return TUNGSTEN_TIER.getEnchantmentValue();
+        }
+
+        @Override
+        public SoundEvent getEquipSound() {
+            return TUNGSTEN_EQUIP.get();
+        }
+
+        @Override
+        public Ingredient getRepairIngredient() {
+            return Ingredient.of();
+        }
+
+        @Override
+        public @NotNull String getName() {
+            return MODID + ":tungsten";
+        }
+
+        @Override
+        public float getToughness() {
+            return 1;
+        }
+
+        @Override
+        public float getKnockbackResistance() {
+            return 0;
+        }
+    };
+
+    public static final RegistryObject<ArmorItem> TUNGSTEN_HELMET = ITEMS.register("tungsten_helmet", () -> new ArmorItem(TUNGSTEN_MATERIAL, ArmorItem.Type.HELMET, new Item.Properties().rarity(Rarity.EPIC).setNoRepair().fireResistant()));
+    public static final RegistryObject<ArmorItem> TUNGSTEN_CHESTPLATE = ITEMS.register("tungsten_chestplate", () -> new ArmorItem(TUNGSTEN_MATERIAL, ArmorItem.Type.CHESTPLATE, new Item.Properties().rarity(Rarity.EPIC).setNoRepair().fireResistant()));
+    public static final RegistryObject<ArmorItem> TUNGSTEN_LEGGINGS = ITEMS.register("tungsten_leggings", () -> new ArmorItem(TUNGSTEN_MATERIAL, ArmorItem.Type.LEGGINGS, new Item.Properties().rarity(Rarity.EPIC).setNoRepair().fireResistant()));
+    public static final RegistryObject<ArmorItem> TUNGSTEN_BOOTS = ITEMS.register("tungsten_boots", () -> new ArmorItem(TUNGSTEN_MATERIAL, ArmorItem.Type.BOOTS, new Item.Properties().rarity(Rarity.EPIC).setNoRepair().fireResistant()));
+
+    // BLOCKS
+    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MODID);
+
+    // ENTITIES
+    public static final DeferredRegister<EntityType<?>> ENTITIES = DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, MODID);
+
+    public static final RegistryObject<EntityType<GrenadeProjectile>> GRENADE_PROJECTILE = ENTITIES.register("grenade_projectile", () -> EntityType.Builder.<GrenadeProjectile>of(GrenadeProjectile::new, MobCategory.MISC).sized(0.5f, 0.5f).build("grenade_projectile"));
+
+    // ENCHANTMENTS
+    public static final DeferredRegister<Enchantment> ENCHANTMENTS = DeferredRegister.create(ForgeRegistries.ENCHANTMENTS, MODID);
+
+    public static final RegistryObject<PullEnchantment> PULLBACK = ENCHANTMENTS.register("pullback", () -> new PullEnchantment(Enchantment.Rarity.COMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+
+    // SOUNDS
+    public static final DeferredRegister<SoundEvent> SOUNDS =
+            DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, MODID);
+
+    public static final RegistryObject<SoundEvent> TUNGSTEN_EQUIP = SOUNDS.register("tungsten_equip", () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MODID, "tungsten_equip")));
 
     public static void allTiers(TriConsumer<Tier, String, Supplier<Item.Properties>> out) {
         out.accept(Tiers.WOOD, "wooden", Item.Properties::new);
@@ -127,6 +190,7 @@ public class TungstenMod {
         ITEMS.register(bus);
         ENTITIES.register(bus);
         ENCHANTMENTS.register(bus);
+        SOUNDS.register(bus);
 
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(HammerItem.FallDamageEliminator.class);
@@ -164,6 +228,11 @@ public class TungstenMod {
             event.accept(FLAMETHROWER);
 
             event.accept(GRENADE);
+
+            event.accept(TUNGSTEN_HELMET);
+            event.accept(TUNGSTEN_CHESTPLATE);
+            event.accept(TUNGSTEN_LEGGINGS);
+            event.accept(TUNGSTEN_BOOTS);
         }
     }
 

@@ -13,5 +13,12 @@
 
   "item.tungsten.grenade": "Grenade",
 
-  "enchantment.tungsten.pullback": "Pullback"
+  "item.tungsten.tungsten_helmet": "Tungsten Helmet",
+  "item.tungsten.tungsten_chestplate": "Tungsten Chestplate",
+  "item.tungsten.tungsten_leggings": "Tungsten Leggings",
+  "item.tungsten.tungsten_boots": "Tungsten Boots",
+
+  "enchantment.tungsten.pullback": "Pullback",
+
+  "subtitle.tungsten.tungsten_equip": "Tungsten armor equipped"
 }
