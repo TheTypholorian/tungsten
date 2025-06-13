@@ -1,0 +1,44 @@
+{
+	"schemaVersion": 1,
+	"id": "tungsten",
+	"version": "${version}",
+	"name": "Tungsten",
+	"description": "Adds a bunch of cool new weapons to Minecraft",
+	"authors": [
+		"The Typhothanian"
+	],
+	"contact": {
+		"homepage": "https://typho.net/",
+		"sources": "https://github.com/TheTypholorian/tungsten"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/tungsten/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"net.typho.tungsten.Tungsten"
+		],
+		"client": [
+			"net.typho.tungsten.TungstenClient"
+		],
+		"fabric-datagen": [
+			"net.typho.tungsten.TungstenDataGenerator"
+		]
+	},
+	"mixins": [
+		"tungsten.mixins.json",
+		{
+			"config": "tungsten.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.16.14",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
